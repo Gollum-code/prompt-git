@@ -16,12 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # 主流目标。Intel Mac (macos-13) 因 runner 排队拥塞暂不列入，
+          # 有需要再加 x86_64-apple-darwin。
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             name: prompt-git-x86_64-unknown-linux-gnu.tar.gz
-          - os: macos-13
-            target: x86_64-apple-darwin
-            name: prompt-git-x86_64-apple-darwin.tar.gz
           - os: macos-14
             target: aarch64-apple-darwin
             name: prompt-git-aarch64-apple-darwin.tar.gz
@@ -66,4 +65,4 @@ jobs:
           files: |
             ${{ matrix.name }}
             checksums-${{ matrix.target }}.txt
-          fail_on_unmatched: true
+          fail_on_unmatched_files: true
