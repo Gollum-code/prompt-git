@@ -1,6 +1,6 @@
 [package]
 name = "prompt-git"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "把提示词当代码管理：git 存储 + 结构化 diff + 每次变更自动跑评测门禁"
 license = "MIT"
