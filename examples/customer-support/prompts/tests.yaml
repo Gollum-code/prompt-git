@@ -1,0 +1,25 @@
+# 评测门禁：每次 prompt 变更后运行 `prompt-git test`。
+backend:
+  provider: openai          # openai | deepseek | custom（OpenAI 兼容接口）
+  model: gpt-4o-mini
+  temperature: 0.2
+  max_tokens: 512
+  base_url: ""              # custom 时必填，例如 https://api.moonshot.cn/v1
+  api_key_env: ""           # 自定义 key 的环境变量名，留空则用 PROMPT_GIT_API_KEY
+
+judge: keyword              # keyword：离线关键词判定（默认，不消耗 token）；llm：调用模型判定
+fail_under: 1.0             # 通过率门禁：低于该值 `prompt-git test` 以非零码退出
+
+cases:
+  - name: 物流查询
+    vars:
+      input: 我的订单 888666 发货了吗？
+      language: 中文
+    expect_contains: [订单, 物流]
+    expect_not_contains: [无法, 抱歉]
+
+  - name: 订单编号
+    vars:
+      input: 怎么查我的订单号？
+      language: 中文
+    expect_contains: [订单号]

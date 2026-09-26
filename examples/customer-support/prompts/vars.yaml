@@ -1,0 +1,14 @@
+# 变量定义与默认值：模板中通过 {name} 插值。
+variables:
+  role:
+    default: "一位资深 AI 助手"
+    description: "系统提示中扮演的角色"
+  language:
+    default: "中文"
+    description: "回答使用的语言"
+  tone:
+    default: "专业"
+    description: "回答的语气"
+  input:
+    default: ""
+    description: "用户输入（通常由测试用例或命令行 --input 注入）"
