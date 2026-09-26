@@ -2,6 +2,10 @@
 
 > **Prompt 也是代码——给它 git、diff、测试。**
 
+<p align="center">
+  <img src="docs/demo.gif" width="640" alt="prompt-git 演示：init → commit → render → diff → test → tag">
+</p>
+
 把提示词当代码管理的版本控制工具：`git` 存储 prompt、**结构化 diff**（按块/变量/系统提示高亮）、**每次变更自动跑评测门禁**。让 prompt 迭代像代码一样有版本、有评审、有回归测试。
 
 ```
@@ -148,8 +152,9 @@ prompt-git CLI (Rust)
 
 - 标签：`prompt` `prompt-engineering` `llm` `version-control` `cli`
 - 卖点：「Prompt 也是代码——给它 git、diff、测试」
-- 演示：一次 prompt 迭代的 diff + 回归测试通过
+- 演示：一次 prompt 迭代的 diff + 回归测试通过（[demo.gif](docs/demo.gif)）
 - 发布：r/LocalLLaMA、r/LLMDevs、中文 AI 社区
+  （帖子草稿见 [docs/posts/](docs/posts/)）
 
 ## Roadmap
 
