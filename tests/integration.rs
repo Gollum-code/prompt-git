@@ -190,3 +190,39 @@ fn custom_provider_requires_base_url() {
     };
     assert!(eval::resolve_backend(&cfg).is_err());
 }
+
+#[test]
+fn tag_semver_validate_and_list() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path();
+    setup_repo(dir);
+    template::scaffold(dir, false).unwrap();
+    store::commit(dir, "v1").unwrap();
+
+    // 创建 annotated tag，规范化为 v 前缀
+    store::create_tag(dir, "v1.0.0", "release 1.0.0").unwrap();
+    assert!(store::tag_exists(dir, "v1.0.0"));
+    let tags = store::tags(dir).unwrap();
+    assert_eq!(tags.len(), 1);
+    assert_eq!(tags[0].name, "v1.0.0");
+    assert!(!tags[0].commit.is_empty());
+
+    // 重复创建应报错
+    assert!(store::create_tag(dir, "v1.0.0", "dup").is_err());
+    // 删除
+    store::delete_tag(dir, "v1.0.0").unwrap();
+    assert!(!store::tag_exists(dir, "v1.0.0"));
+    // 删不存在的
+    assert!(store::delete_tag(dir, "v9.9.9").is_err());
+}
+
+#[test]
+fn semver_edge_cases() {
+    use prompt_git::store::validate_semver;
+    // 前导零非法
+    assert!(validate_semver("01.0.0").is_err());
+    // 缺段
+    assert!(validate_semver("1.0").is_err());
+    // prerelease 合法
+    assert_eq!(validate_semver("1.2.0-rc.1").unwrap(), "v1.2.0-rc.1");
+}

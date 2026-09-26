@@ -1,0 +1,68 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: prompt-git-x86_64-unknown-linux-gnu.tar.gz
+          - os: macos-13
+            target: x86_64-apple-darwin
+            name: prompt-git-x86_64-apple-darwin.tar.gz
+          - os: macos-14
+            target: aarch64-apple-darwin
+            name: prompt-git-aarch64-apple-darwin.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: prompt-git-x86_64-pc-windows-msvc.zip
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: package (unix)
+        shell: bash
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../${{ matrix.name }} prompt-git
+
+      - name: package (windows)
+        shell: bash
+        if: runner.os == 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          powershell -Command "Compress-Archive -Path prompt-git.exe -DestinationPath ../../../${{ matrix.name }} -Force"
+
+      - name: checksum
+        shell: bash
+        run: |
+          echo "prompt-git prebuilt binary sha256:" > checksums-${{ matrix.target }}.txt
+          sha256sum ${{ matrix.name }} >> checksums-${{ matrix.target }}.txt
+
+      - name: attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.name }}
+            checksums-${{ matrix.target }}.txt
+          fail_on_unmatched: true
