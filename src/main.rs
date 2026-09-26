@@ -23,6 +23,7 @@ prompt-git init                 # 创建 prompts/ 并纳入 git\n  \
 prompt-git commit -m \"优化系统提示\"   # 提交一次提示词变更\n  \
 prompt-git diff                  # 结构化查看与上一版的差异（按块高亮）\n  \
 prompt-git test                  # 变更后自动跑评测门禁\n  \
+prompt-git tag 1.0.0            # 语义化版本发布\n  \
 prompt-git compare v1 v2         # 同输入下对比两版输出"
 )]
 struct Cli {
@@ -42,6 +43,8 @@ enum Cmd {
     Log(LogArgs),
     /// 回滚提示词到某个版本（commit / tag / 分支）
     Checkout(CheckoutArgs),
+    /// 语义化版本 tag：list / create / delete（1.0.0 → v1.0.0）
+    Tag(TagArgs),
     /// 结构化查看提示词变更（默认与 HEAD 比较）
     Diff(DiffArgs),
     /// 渲染当前提示词（不调用模型），用于调试变量
@@ -82,6 +85,21 @@ struct CheckoutArgs {
     version: String,
     /// 可选：只恢复某个文件（如 system.md）
     path: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct TagArgs {
+    /// 版本号（如 1.0.0 / v1.0.0 / 1.2.0-rc.1；留空则列出所有 tag）
+    version: Option<String>,
+    /// tag 说明（默认 “release <版本号>”）
+    #[arg(short, long)]
+    message: Option<String>,
+    /// 删除指定 tag
+    #[arg(short, long)]
+    delete: bool,
+    /// 列出条数
+    #[arg(short = 'n', long, default_value_t = 20)]
+    limit: usize,
 }
 
 #[derive(Args, Debug)]
@@ -160,6 +178,7 @@ fn run(cli: Cli, root: &Path) -> Result<ExitCode> {
         Cmd::Commit(args) => cmd_commit(root, args),
         Cmd::Log(args) => cmd_log(root, args),
         Cmd::Checkout(args) => cmd_checkout(root, args),
+        Cmd::Tag(args) => cmd_tag(root, args),
         Cmd::Diff(args) => cmd_diff(root, args),
         Cmd::Render(args) => cmd_render(root, args),
         Cmd::Test(args) => cmd_test(root, args),
@@ -173,30 +192,77 @@ fn cmd_init(root: &Path, args: InitArgs) -> Result<ExitCode> {
     let created = template::scaffold(root, args.force)?;
     store::git_init(root)?;
     println!();
-    println!("{} {}", "已创建提示词项目：".green().bold(), root.display().to_string().bright_white().bold());
+    println!(
+        "{} {}",
+        "已创建提示词项目：".green().bold(),
+        root.display().to_string().bright_white().bold()
+    );
     for p in &created {
-        println!("  + {}", p.strip_prefix(root).unwrap_or(p).display().to_string().bright_cyan());
+        println!(
+            "  + {}",
+            p.strip_prefix(root)
+                .unwrap_or(p)
+                .display()
+                .to_string()
+                .bright_cyan()
+        );
     }
     if created.is_empty() {
         println!("  (文件已存在，未改动)");
     }
     println!();
     println!("下一步：");
-    println!("  1. 编辑 {}", format!("{PROMPTS_DIR}/system.md 与 user.md").bright_white().bold());
-    println!("  2. {}", "prompt-git commit -m \"初始化提示词\"".bright_white().bold());
-    println!("  3. {}", "prompt-git diff   # 看结构化 diff".bright_white().bold());
+    println!(
+        "  1. 编辑 {}",
+        format!("{PROMPTS_DIR}/system.md 与 user.md")
+            .bright_white()
+            .bold()
+    );
+    println!(
+        "  2. {}",
+        "prompt-git commit -m \"初始化提示词\""
+            .bright_white()
+            .bold()
+    );
+    println!(
+        "  3. {}",
+        "prompt-git diff   # 看结构化 diff".bright_white().bold()
+    );
     Ok(ExitCode::SUCCESS)
 }
 
 fn cmd_status(root: &Path) -> Result<ExitCode> {
     if !store::is_repo(root) {
-        println!("当前目录还不是 git 仓库。运行 {} 开始管理提示词。", "prompt-git init".bright_cyan().bold());
+        println!(
+            "当前目录还不是 git 仓库。运行 {} 开始管理提示词。",
+            "prompt-git init".bright_cyan().bold()
+        );
         return Ok(ExitCode::SUCCESS);
     }
     if let Some(c) = store::last_commit(root) {
-        println!("最近提交: {} {}  {}  {}", c.short.bright_yellow().bold(), c.date.dimmed(), c.author.dimmed(), c.subject.bright_white());
+        let tags = tag_decorations(root, &c.short);
+        println!(
+            "最近提交: {}{} {}  {}  {}",
+            c.short.bright_yellow().bold(),
+            tags,
+            c.date.dimmed(),
+            c.author.dimmed(),
+            c.subject.bright_white()
+        );
     } else {
         println!("{} 尚无提交记录", "提示:".yellow());
+    }
+    let tags = store::tags(root).unwrap_or_default();
+    if !tags.is_empty() {
+        println!(
+            "tag:        {}",
+            tags.iter()
+                .take(5)
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>()
+                .join(" ")
+                .bright_cyan()
+        );
     }
     let changes = store::status(root)?;
     if changes.is_empty() {
@@ -206,7 +272,10 @@ fn cmd_status(root: &Path) -> Result<ExitCode> {
         for line in changes {
             println!("  {}", line);
         }
-        println!("运行 {} 查看结构化 diff", "prompt-git diff".bright_cyan().bold());
+        println!(
+            "运行 {} 查看结构化 diff",
+            "prompt-git diff".bright_cyan().bold()
+        );
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -229,10 +298,18 @@ fn cmd_log(root: &Path, args: LogArgs) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     for c in commits {
+        let tags = tag_decorations(root, &c.short);
         if args.oneline {
-            println!("{} {}", c.short.bright_yellow().bold(), c.subject);
+            println!("{}{} {}", c.short.bright_yellow().bold(), tags, c.subject);
         } else {
-            println!("{} {}  {}  {}", c.short.bright_yellow().bold(), c.date.dimmed(), c.author.dimmed(), c.subject.bright_white());
+            println!(
+                "{}{} {}  {}  {}",
+                c.short.bright_yellow().bold(),
+                tags,
+                c.date.dimmed(),
+                c.author.dimmed(),
+                c.subject.bright_white()
+            );
         }
     }
     Ok(ExitCode::SUCCESS)
@@ -245,6 +322,104 @@ fn cmd_checkout(root: &Path, args: CheckoutArgs) -> Result<ExitCode> {
     store::check_rev(root, &args.version)?;
     store::restore(root, &args.version, args.path.as_deref().map(Path::new))?;
     Ok(ExitCode::SUCCESS)
+}
+
+/// 该 commit 上挂的 tag 装饰串（如 “ [v1.0.0]”）。
+fn tag_decorations(root: &Path, short: &str) -> String {
+    let Ok(list) = store::tags(root) else {
+        return String::new();
+    };
+    let names: Vec<String> = list
+        .iter()
+        .filter(|t| {
+            !t.commit.is_empty()
+                && (t.commit == short
+                    || t.commit.starts_with(short)
+                    || short.starts_with(&t.commit))
+        })
+        .map(|t| format!("[{}]", t.name))
+        .collect();
+    if names.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", names.join(" "))
+    }
+}
+
+fn cmd_tag(root: &Path, args: TagArgs) -> Result<ExitCode> {
+    if !store::is_repo(root) {
+        bail!("当前目录还不是 git 仓库，请先运行 `prompt-git init`");
+    }
+    if args.delete {
+        let name = args.version.as_deref().unwrap_or("");
+        if name.is_empty() {
+            bail!("删除 tag 需要指定版本号：prompt-git tag -d <版本>");
+        }
+        store::delete_tag(root, name)?;
+        println!("已删除 tag: {}", name.red().bold());
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    match &args.version {
+        None => {
+            let list = store::tags(root)?;
+            if list.is_empty() {
+                println!(
+                    "还没有 tag。创建语义化版本：{}",
+                    "prompt-git tag 1.0.0".bright_cyan().bold()
+                );
+                return Ok(ExitCode::SUCCESS);
+            }
+            let head = store::last_commit(root)
+                .map(|c| c.short)
+                .unwrap_or_default();
+            for t in list.iter().take(args.limit) {
+                println!(
+                    "{:<22} {}  {}{}",
+                    t.name.bright_yellow().bold(),
+                    t.commit.bright_cyan().dimmed(),
+                    t.subject.dimmed(),
+                    if !t.commit.is_empty() && t.commit == head && !list.is_empty() {
+                        "  ← HEAD".bright_white().bold()
+                    } else {
+                        "".clear()
+                    }
+                );
+            }
+            if list.len() > args.limit {
+                println!("…（共 {} 个 tag）", list.len());
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Some(v) => {
+            let name = store::validate_semver(v)?;
+            let changes = store::status(root)?;
+            if !changes.is_empty() {
+                eprintln!(
+                    "{} 有未提交变更：建议先 `prompt-git commit` 再打 tag",
+                    "警告:".yellow()
+                );
+            }
+            let message = args
+                .message
+                .clone()
+                .unwrap_or_else(|| format!("release {name}"));
+            store::create_tag(root, &name, &message)?;
+            let head = store::last_commit(root)
+                .map(|c| c.short)
+                .unwrap_or_default();
+            println!(
+                "已创建 tag: {}  →  {}",
+                name.green().bold(),
+                head.bright_white().bold()
+            );
+            println!(
+                "{} 别忘了 `prompt-git test` 确认门禁通过后再发布",
+                "提示:".yellow()
+            );
+            Ok(ExitCode::SUCCESS)
+        }
+    }
 }
 
 fn cmd_diff(root: &Path, args: DiffArgs) -> Result<ExitCode> {
@@ -274,7 +449,11 @@ fn cmd_diff(root: &Path, args: DiffArgs) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     let base = version.unwrap_or_else(|| "(初次添加)".to_string());
-    println!("{} {}  →  工作区\n", "对比基准:".bright_cyan().bold(), base.bright_yellow());
+    println!(
+        "{} {}  →  工作区\n",
+        "对比基准:".bright_cyan().bold(),
+        base.bright_yellow()
+    );
     print!("{}", render_diffs(&diffs, args.no_color));
     Ok(ExitCode::SUCCESS)
 }

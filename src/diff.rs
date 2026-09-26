@@ -27,15 +27,27 @@ pub fn diff_lines(a: &[String], b: &[String]) -> Vec<Edit> {
     let m = b.len() as isize;
 
     if n == 0 {
-        return b.iter()
+        return b
+            .iter()
             .enumerate()
-            .map(|(i, t)| Edit { op: Op::Insert, old: None, new: Some(i + 1), text: t.clone() })
+            .map(|(i, t)| Edit {
+                op: Op::Insert,
+                old: None,
+                new: Some(i + 1),
+                text: t.clone(),
+            })
             .collect();
     }
     if m == 0 {
-        return a.iter()
+        return a
+            .iter()
             .enumerate()
-            .map(|(i, t)| Edit { op: Op::Delete, old: Some(i + 1), new: None, text: t.clone() })
+            .map(|(i, t)| Edit {
+                op: Op::Delete,
+                old: Some(i + 1),
+                new: None,
+                text: t.clone(),
+            })
             .collect();
     }
 
@@ -52,7 +64,8 @@ pub fn diff_lines(a: &[String], b: &[String]) -> Vec<Edit> {
         let kmax = d as isize;
         let mut k = kmin;
         while k <= kmax {
-            let x = if k == kmin || (k != kmax && v[(offset + k - 1) as usize] < v[(offset + k + 1) as usize])
+            let x = if k == kmin
+                || (k != kmax && v[(offset + k - 1) as usize] < v[(offset + k + 1) as usize])
             {
                 v[(offset + k + 1) as usize]
             } else {
@@ -83,7 +96,8 @@ pub fn diff_lines(a: &[String], b: &[String]) -> Vec<Edit> {
     for d in (0..trace.len()).rev() {
         let vv = &trace[d];
         let k = x - y;
-        let kprev = if k == -(d as isize) || (k != d as isize && vv[(offset + k - 1) as usize] < vv[(offset + k + 1) as usize])
+        let kprev = if k == -(d as isize)
+            || (k != d as isize && vv[(offset + k - 1) as usize] < vv[(offset + k + 1) as usize])
         {
             k + 1
         } else {
@@ -261,14 +275,12 @@ pub fn render_file_diff(fd: &FileDiff, no_color: bool) -> String {
     let mut s = String::new();
     let total_old = fd.old_content.lines().count();
     let total_new = fd.new_content.lines().count();
-    s.push_str(
-        &format!(
-            "{} {} · {}\n",
-            "━━━".bright_cyan(),
-            fd.name.bright_yellow().bold(),
-            fd.label.bright_cyan(),
-        ),
-    );
+    s.push_str(&format!(
+        "{} {} · {}\n",
+        "━━━".bright_cyan(),
+        fd.name.bright_yellow().bold(),
+        fd.label.bright_cyan(),
+    ));
     s.push_str(&format!(
         "{} {} → {} 行\n",
         "文件规模:".dimmed(),
@@ -327,10 +339,7 @@ pub fn render_file_diff(fd: &FileDiff, no_color: bool) -> String {
                                 }
                             })
                             .collect();
-                        let new = hunk[i + 1]
-                            .new
-                            .map(|n| n.to_string())
-                            .unwrap_or_default();
+                        let new = hunk[i + 1].new.map(|n| n.to_string()).unwrap_or_default();
                         let new_line: String = new_tokens
                             .iter()
                             .map(|(t, changed)| {
@@ -399,22 +408,21 @@ pub fn render_diffs(files: &[FileDiff], no_color: bool) -> String {
         "-".red().bold(),
         removed.to_string().red().bold(),
     ));
-    if files.iter().any(|f| f.name == "tests.yaml" || f.name == "vars.yaml") {
-        s.push_str(
-            &format!(
-                "{} 变量/用例有变动，建议运行 `{}` 验证评测门禁\n",
-                "⚠".yellow().bold(),
-                "prompt-git test".bright_cyan().bold()
-            ),
-        );
+    if files
+        .iter()
+        .any(|f| f.name == "tests.yaml" || f.name == "vars.yaml")
+    {
+        s.push_str(&format!(
+            "{} 变量/用例有变动，建议运行 `{}` 验证评测门禁\n",
+            "⚠".yellow().bold(),
+            "prompt-git test".bright_cyan().bold()
+        ));
     } else {
-        s.push_str(
-            &format!(
-                "{} 每次变更后建议运行 `{}` 确认回归\n",
-                "→".bright_cyan(),
-                "prompt-git test".bright_cyan().bold()
-            ),
-        );
+        s.push_str(&format!(
+            "{} 每次变更后建议运行 `{}` 确认回归\n",
+            "→".bright_cyan(),
+            "prompt-git test".bright_cyan().bold()
+        ));
     }
     s
 }
@@ -532,7 +540,12 @@ mod tests {
     fn diff_larger_than_deletion() {
         // 经典用例：插入更多行
         let a = vec!["1".to_string(), "4".to_string()];
-        let b = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()];
+        let b = vec![
+            "1".to_string(),
+            "2".to_string(),
+            "3".to_string(),
+            "4".to_string(),
+        ];
         let edits = diff_lines(&a, &b);
         let inserts = edits.iter().filter(|e| e.op == Op::Insert).count();
         let deletes = edits.iter().filter(|e| e.op == Op::Delete).count();
@@ -543,8 +556,16 @@ mod tests {
     #[test]
     fn word_diff_marks_changed() {
         let (old, new) = diff_words("color red", "colour red");
-        let old_str: String = old.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>().join("");
-        let new_str: String = new.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>().join("");
+        let old_str: String = old
+            .iter()
+            .map(|(t, _)| t.clone())
+            .collect::<Vec<_>>()
+            .join("");
+        let new_str: String = new
+            .iter()
+            .map(|(t, _)| t.clone())
+            .collect::<Vec<_>>()
+            .join("");
         assert_eq!(old_str, "color red");
         assert_eq!(new_str, "colour red");
         // 至少各有一个 token 被标记变化

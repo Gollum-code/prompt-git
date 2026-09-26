@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  lint-test:
+    name: fmt / clippy / test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test
+        run: cargo test --all
+
+  # 自检：用仓库自带的假 LLM 跑一次 prompt-git test，验证评测门禁链路可用
+  eval-gate:
+    name: eval gate (mock llm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release
+      - name: start mock llm
+        run: |
+          nohup python3 scripts/mock_llm.py > /tmp/mock_llm.log 2>&1 &
+          for i in $(seq 1 10); do
+            curl -sf -X POST http://127.0.0.1:18080/v1/chat/completions \
+              -H 'Content-Type: application/json' -d '{}' > /dev/null && break
+            sleep 1
+          done
+      - name: prompt-git test (dogfooding)
+        env:
+          OPENAI_API_KEY: dummy
+          PROMPT_GIT_BASE_URL: http://127.0.0.1:18080/v1
+        working-directory: examples/customer-support
+        run: ../target/release/prompt-git test

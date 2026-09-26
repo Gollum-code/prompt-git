@@ -179,12 +179,125 @@ pub fn check_rev(root: &Path, rev: &str) -> Result<()> {
     Ok(())
 }
 
+/// 校验并规范化语义化版本号（自动补 `v` 前缀）。
+/// 支持 `1.0.0`、`v1.0.0`、`1.2.3-rc.1`、`1.2.3+build.5`。
+pub fn validate_semver(input: &str) -> Result<String> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        bail!("版本号不能为空");
+    }
+    let body = raw.strip_prefix('v').unwrap_or(raw);
+
+    // build metadata（+ 之后）
+    let (body_pre, build) = match body.split_once('+') {
+        Some((b, m)) => (b, Some(m)),
+        None => (body, None),
+    };
+    if let Some(m) = build {
+        if !valid_identifiers(m) {
+            bail!("非法的 build metadata: +{m}");
+        }
+    }
+
+    // prerelease（- 之后）
+    let (core, pre) = match body_pre.split_once('-') {
+        Some((c, p)) => (c, Some(p)),
+        None => (body_pre, None),
+    };
+    if let Some(p) = pre {
+        if !valid_identifiers(p) {
+            bail!("非法的 prerelease: -{p}");
+        }
+    }
+
+    let parts: Vec<&str> = core.split('.').collect();
+    if parts.len() != 3 {
+        bail!("语义化版本格式应为 major.minor.patch，例如 1.0.0 或 v1.0.0");
+    }
+    for p in &parts {
+        if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) {
+            bail!("版本号各段必须是数字，当前为 {p}");
+        }
+        if p.len() > 1 && p.starts_with('0') {
+            bail!("语义化版本不允许前导零，当前为 {p}");
+        }
+    }
+    Ok(format!("v{body}"))
+}
+
+/// prerelease / build 段的合法性：非空点分标识符，仅字母数字与连字符。
+fn valid_identifiers(s: &str) -> bool {
+    !s.is_empty()
+        && s.split('.').all(|seg| {
+            !seg.is_empty() && seg.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        })
+}
+
+#[derive(Debug, Clone)]
+pub struct TagInfo {
+    pub name: String,
+    /// tag 指向的 commit（annotated tag 会解引用到 commit）
+    pub commit: String,
+    pub subject: String,
+}
+
+/// 列出 tag，按版本号倒序。
+pub fn tags(root: &Path) -> Result<Vec<TagInfo>> {
+    let out = run_git(
+        root,
+        &[
+            "for-each-ref",
+            "--sort=-v:refname",
+            "--format=%(refname:short)\u{1f}%(*objectname:short)\u{1f}%(objectname:short)\u{1f}%(contents:subject)",
+            "refs/tags",
+        ],
+    )?;
+    let mut list = Vec::new();
+    for line in out.lines() {
+        let p: Vec<&str> = line.split('\u{1f}').collect();
+        if p.len() < 4 {
+            continue;
+        }
+        let commit = if p[1].is_empty() { p[2] } else { p[1] };
+        list.push(TagInfo {
+            name: p[0].to_string(),
+            commit: commit.chars().take(7).collect(),
+            subject: p[3].to_string(),
+        });
+    }
+    Ok(list)
+}
+
+/// tag 是否已存在。
+pub fn tag_exists(root: &Path, name: &str) -> bool {
+    run_git(
+        root,
+        &["rev-parse", "-q", "--verify", &format!("refs/tags/{name}")],
+    )
+    .is_ok()
+}
+
+/// 创建 annotated tag。
+pub fn create_tag(root: &Path, name: &str, message: &str) -> Result<()> {
+    if tag_exists(root, name) {
+        bail!("tag {name} 已存在，如需覆盖请先删除：prompt-git tag -d {name}");
+    }
+    run_git(root, &["tag", "-a", name, "-m", message])?;
+    Ok(())
+}
+
+/// 删除 tag。
+pub fn delete_tag(root: &Path, name: &str) -> Result<()> {
+    if !tag_exists(root, name) {
+        bail!("tag {name} 不存在");
+    }
+    run_git(root, &["tag", "-d", name])?;
+    Ok(())
+}
+
 /// 收集工作区与某版本（rev=None 表示只用工作区）的 prompts 文件。
 /// 返回 (文件名, 版本侧内容, 工作区侧内容)，两者至少有一侧非空。
-pub fn collect_files(
-    root: &Path,
-    rev: Option<&str>,
-) -> Result<Vec<(String, String, String)>> {
+pub fn collect_files(root: &Path, rev: Option<&str>) -> Result<Vec<(String, String, String)>> {
     let mut names: Vec<String> = Vec::new();
 
     if let Some(r) = rev {
@@ -229,10 +342,33 @@ fn order_key(name: &str) -> (usize, String) {
 
 #[cfg(test)]
 mod tests {
+    use super::validate_semver;
+
     #[test]
     fn split_commit_line_format() {
         let line = "abc123\u{1f}作者\u{1f}2026-09-26\u{1f}优化 system 提示";
         let parts: Vec<&str> = line.split('\u{1f}').collect();
         assert_eq!(parts.len(), 4);
+    }
+
+    #[test]
+    fn semver_valid_forms() {
+        assert_eq!(validate_semver("1.0.0").unwrap(), "v1.0.0");
+        assert_eq!(validate_semver("v2.3.4").unwrap(), "v2.3.4");
+        assert_eq!(validate_semver("1.2.3-rc.1").unwrap(), "v1.2.3-rc.1");
+        assert_eq!(validate_semver("1.2.3+build.5").unwrap(), "v1.2.3+build.5");
+        assert_eq!(validate_semver("10.20.30").unwrap(), "v10.20.30");
+    }
+
+    #[test]
+    fn semver_invalid_forms() {
+        assert!(validate_semver("").is_err());
+        assert!(validate_semver("1.0").is_err());
+        assert!(validate_semver("1.0.0.0").is_err());
+        assert!(validate_semver("a.b.c").is_err());
+        assert!(validate_semver("01.0.0").is_err());
+        assert!(validate_semver("1.0.0-").is_err());
+        assert!(validate_semver("1.0.0+").is_err());
+        assert!(validate_semver("1.0.0..1").is_err());
     }
 }

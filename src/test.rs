@@ -54,8 +54,7 @@ pub fn load_suite_from_disk(root: &Path) -> Result<TestSuite> {
             p.display()
         );
     }
-    let text = std::fs::read_to_string(&p)
-        .with_context(|| format!("读取 {} 失败", p.display()))?;
+    let text = std::fs::read_to_string(&p).with_context(|| format!("读取 {} 失败", p.display()))?;
     load_suite(&text)
 }
 
@@ -69,11 +68,7 @@ pub struct GateSummary {
 }
 
 /// 运行评测门禁。filter 按用例名子串过滤；dry_run 只渲染请求不调用模型。
-pub fn run_gate(
-    root: &Path,
-    filter: Option<&str>,
-    dry_run: bool,
-) -> Result<GateSummary> {
+pub fn run_gate(root: &Path, filter: Option<&str>, dry_run: bool) -> Result<GateSummary> {
     let ps = PromptSet::load(root)?;
     let suite = load_suite_from_disk(root)?;
 
@@ -144,12 +139,18 @@ pub fn run_gate(
                             .to_string()
                             .cyan()
                             .dimmed()
-                            .to_string() + "ms",
+                            .to_string()
+                            + "ms",
                         token_suffix(result.tokens),
                     );
                 } else {
                     summary.failed += 1;
-                    println!("{}  {}  {}", "✘".red().bold(), case.name.bright_white().bold(), "失败".red());
+                    println!(
+                        "{}  {}  {}",
+                        "✘".red().bold(),
+                        case.name.bright_white().bold(),
+                        "失败".red()
+                    );
                     for r in &result.reasons {
                         println!("      - {}", r.yellow());
                     }
@@ -160,7 +161,12 @@ pub fn run_gate(
             }
             Err(err) => {
                 summary.failed += 1;
-                println!("{}  {}  {}", "✘".red().bold(), case.name.bright_white().bold(), "调用失败".red());
+                println!(
+                    "{}  {}  {}",
+                    "✘".red().bold(),
+                    case.name.bright_white().bold(),
+                    "调用失败".red()
+                );
                 println!("      {}", format!("{err:#}").yellow().dimmed());
             }
         }
@@ -195,10 +201,13 @@ pub fn run_gate(
                 .bold()
                 .to_string()
         } else {
-            format!("门禁未通过（要求 ≥ {:.0}%，低于阈值）", suite.fail_under * 100.0)
-                .red()
-                .bold()
-                .to_string()
+            format!(
+                "门禁未通过（要求 ≥ {:.0}%，低于阈值）",
+                suite.fail_under * 100.0
+            )
+            .red()
+            .bold()
+            .to_string()
         };
         println!("{verdict}");
     }
@@ -223,7 +232,11 @@ fn preview_line(s: &str) -> String {
 }
 
 fn print_dry_run(name: &str, messages: &[ChatMessage]) {
-    println!("{} {}", "── 用例:".bright_cyan().bold(), name.bright_yellow().bold());
+    println!(
+        "{} {}",
+        "── 用例:".bright_cyan().bold(),
+        name.bright_yellow().bold()
+    );
     for m in messages {
         let role = m.role.as_str();
         let tag = if role == "system" {
