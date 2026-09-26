@@ -56,8 +56,9 @@ jobs:
       - name: checksum
         shell: bash
         run: |
-          echo "prompt-git prebuilt binary sha256:" > checksums-${{ matrix.target }}.txt
-          sha256sum ${{ matrix.name }} >> checksums-${{ matrix.target }}.txt
+          # macOS 没有 sha256sum，统一用 python3 跨平台计算
+          python3 -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest(),sys.argv[1])" "${{ matrix.name }}" > checksums-${{ matrix.target }}.txt
+          cat checksums-${{ matrix.target }}.txt
 
       - name: attach to release
         uses: softprops/action-gh-release@v2
