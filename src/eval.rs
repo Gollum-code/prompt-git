@@ -62,18 +62,24 @@ pub fn resolve_backend(backend: &BackendConfig) -> Result<ResolvedBackend> {
     }
 
     let (base_url, default_key_env) = match provider.as_str() {
-        "openai" => ("https://api.openai.com/v1".to_string(), "OPENAI_API_KEY".into()),
-        "deepseek" => ("https://api.deepseek.com/v1".to_string(), "DEEPSEEK_API_KEY".into()),
+        "openai" => (
+            "https://api.openai.com/v1".to_string(),
+            "OPENAI_API_KEY".into(),
+        ),
+        "deepseek" => (
+            "https://api.deepseek.com/v1".to_string(),
+            "DEEPSEEK_API_KEY".into(),
+        ),
         "custom" | "openai-compatible" => {
             let base = backend.base_url.trim().trim_end_matches('/').to_string();
             if base.is_empty() {
-                bail!("backend.provider 为 custom 时必须配置 backend.base_url（OpenAI 兼容接口地址）");
+                bail!(
+                    "backend.provider 为 custom 时必须配置 backend.base_url（OpenAI 兼容接口地址）"
+                );
             }
             (base, "PROMPT_GIT_API_KEY".into())
         }
-        other => bail!(
-            "未知 backend.provider: {other}（支持 openai / deepseek / custom）"
-        ),
+        other => bail!("未知 backend.provider: {other}（支持 openai / deepseek / custom）"),
     };
 
     // 环境变量统一覆盖 model
@@ -154,10 +160,7 @@ pub fn chat(backend: &ResolvedBackend, messages: &[ChatMessage]) -> Result<ChatR
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().unwrap_or_default();
-        bail!(
-            "API 请求失败 [{status}] {}",
-            truncate(&text, 500)
-        );
+        bail!("API 请求失败 [{status}] {}", truncate(&text, 500));
     }
 
     let json: serde_json::Value = resp.json().context("解析 API 响应失败")?;
@@ -259,11 +262,7 @@ pub fn judge_keyword(case: &TestCase, output: &str) -> CaseResult {
 }
 
 /// llm 判定：让模型判断输出是否达标（返回 PASS/FAIL）。
-pub fn judge_llm(
-    backend: &ResolvedBackend,
-    case: &TestCase,
-    output: &str,
-) -> Result<CaseResult> {
+pub fn judge_llm(backend: &ResolvedBackend, case: &TestCase, output: &str) -> Result<CaseResult> {
     let instructions = case
         .judge_prompt
         .clone()
@@ -272,7 +271,8 @@ pub fn judge_llm(
     let messages = vec![
         ChatMessage {
             role: "system".to_string(),
-            content: "你是 prompt 评测裁判。只回复 PASS 或 FAIL，不要输出其他任何内容。".to_string(),
+            content: "你是 prompt 评测裁判。只回复 PASS 或 FAIL，不要输出其他任何内容。"
+                .to_string(),
         },
         ChatMessage {
             role: "user".to_string(),

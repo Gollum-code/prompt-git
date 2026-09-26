@@ -39,7 +39,12 @@ fn resolve_input_values(
 }
 
 /// 打印一侧的渲染结果/输出。
-fn print_side(title: &str, subtitle: &str, messages_opt: Option<&[ChatMessage]>, output_opt: Option<&str>) {
+fn print_side(
+    title: &str,
+    subtitle: &str,
+    messages_opt: Option<&[ChatMessage]>,
+    output_opt: Option<&str>,
+) {
     println!("{}", "━━━".bright_cyan());
     println!(
         "{} {} {}",
@@ -161,8 +166,7 @@ pub fn compare_versions(
     );
     println!(
         "{}",
-        "提示：如需把评测门禁跑在两版上，可先 checkout 到某版本再运行 `prompt-git test`"
-            .dimmed(),
+        "提示：如需把评测门禁跑在两版上，可先 checkout 到某版本再运行 `prompt-git test`".dimmed(),
     );
 
     Ok(())

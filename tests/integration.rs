@@ -70,7 +70,10 @@ fn full_workflow_init_commit_diff_log_checkout() {
     let files = store::collect_files(dir, Some("HEAD")).unwrap();
     let diffs = build_file_diffs(&files);
     let sys_diff = diffs.iter().find(|d| d.name == "system.md").unwrap();
-    assert!(sys_diff.edits.iter().any(|e| e.op == prompt_git::diff::Op::Insert));
+    assert!(sys_diff
+        .edits
+        .iter()
+        .any(|e| e.op == prompt_git::diff::Op::Insert));
     let rendered = prompt_git::diff::render_diffs(&diffs, true);
     assert!(rendered.contains("system.md"));
     assert!(rendered.contains("新增一行要求"));

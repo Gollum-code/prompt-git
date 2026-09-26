@@ -24,6 +24,7 @@ prompt-git init → 编辑 → commit → diff → test →（不行）checkout 
 | `prompt-git log` | 查看提示词版本历史 |
 | `prompt-git checkout <version>` | 回滚到某个版本 |
 | `prompt-git diff` | **结构化 diff**：按 system/user/vars/tests 分块、行内词级高亮 |
+| `prompt-git tag [1.0.0]` | 语义化版本 tag：list / create / delete |
 | `prompt-git render` | 渲染当前提示词（变量插值调试，不调用模型） |
 | `prompt-git test` | **评测门禁**：变更后跑关联用例，返回通过率（可接 CI） |
 | `prompt-git compare <v1> <v2>` | 相同输入下对比两个版本的输出 |
@@ -60,7 +61,13 @@ prompt-git test
 
 # 7. 不行就回滚
 prompt-git checkout HEAD~1
+
+# 8. 稳定后打语义化版本（自动规范为 v1.0.0）
+prompt-git tag 1.0.0
+git push --tags
 ```
+
+团队协作看 [docs/team-flow.md](docs/team-flow.md)：分支 / PR / 评审 / 回归 / 发布约定。
 
 ### 本地零成本体验评测门禁
 
@@ -150,7 +157,7 @@ prompt-git CLI (Rust)
 |---|---|
 | M1 ✅ | git 接入 + commit/log/checkout + 结构化 diff |
 | M2 ✅ | test 门禁（keyword / llm judge）+ 变量模板 |
-| M3 | compare 双输出 + 团队 flow 文档 + tag 语义版本 |
+| M3 ✅ | compare 双输出 + 语义化版本 `tag` + 团队 flow 文档 `docs/team-flow.md` + CI（fmt/clippy/test ×3 平台 + mock LLM 门禁自检） |
 
 ## 风险与应对
 

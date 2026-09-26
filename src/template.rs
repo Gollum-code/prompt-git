@@ -209,9 +209,11 @@ pub fn warn_unresolved(unresolved: &[String]) {
 
 // ---------- init / scaffold ----------
 
-pub const DEFAULT_SYSTEM_MD: &str = "你是 {role}。\n请始终使用 {language} 回答，语气保持 {tone}。\n";
+pub const DEFAULT_SYSTEM_MD: &str =
+    "你是 {role}。\n请始终使用 {language} 回答，语气保持 {tone}。\n";
 
-pub const DEFAULT_USER_MD: &str = "用户的问题是：\n\n{input}\n\n请根据以上问题，给出清晰、完整的回答。\n";
+pub const DEFAULT_USER_MD: &str =
+    "用户的问题是：\n\n{input}\n\n请根据以上问题，给出清晰、完整的回答。\n";
 
 pub const DEFAULT_VARS_YAML: &str = r#"# 变量定义与默认值：模板中通过 {name} 插值。
 variables:
@@ -268,8 +270,7 @@ pub fn default_files() -> Vec<(String, &'static str)> {
 /// 创建 prompts/ 目录与四个默认文件。`force=true` 覆盖已有文件。
 pub fn scaffold(root: &Path, force: bool) -> Result<Vec<PathBuf>> {
     let prompts = root.join(PROMPTS_DIR);
-    fs::create_dir_all(&prompts)
-        .with_context(|| format!("创建 {} 失败", prompts.display()))?;
+    fs::create_dir_all(&prompts).with_context(|| format!("创建 {} 失败", prompts.display()))?;
     let mut created = Vec::new();
     for (name, content) in default_files() {
         let p = prompts.join(name);
@@ -287,8 +288,8 @@ pub fn scaffold(root: &Path, force: bool) -> Result<Vec<PathBuf>> {
 pub fn worktree_files(root: &Path) -> Result<Vec<String>> {
     let prompts = root.join(PROMPTS_DIR);
     let mut out = Vec::new();
-    for entry in fs::read_dir(&prompts)
-        .with_context(|| format!("读取 {} 失败", prompts.display()))?
+    for entry in
+        fs::read_dir(&prompts).with_context(|| format!("读取 {} 失败", prompts.display()))?
     {
         let entry = entry?;
         if entry.file_type()?.is_file() {
@@ -306,8 +307,7 @@ pub fn worktree_files(root: &Path) -> Result<Vec<String>> {
 pub fn read_worktree_file(root: &Path, name: &str) -> Result<String> {
     let p = root.join(PROMPTS_DIR).join(name);
     if p.is_file() {
-        Ok(fs::read_to_string(&p)
-            .with_context(|| format!("读取 {} 失败", p.display()))?)
+        Ok(fs::read_to_string(&p).with_context(|| format!("读取 {} 失败", p.display()))?)
     } else {
         Ok(String::new())
     }
