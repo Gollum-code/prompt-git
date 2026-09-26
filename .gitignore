@@ -1,3 +1,5 @@
 /target
 /demo
 *.log
+__pycache__/
+*.pyc
