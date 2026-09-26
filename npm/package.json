@@ -1,0 +1,46 @@
+{
+  "name": "prompt-git",
+  "version": "0.2.0",
+  "description": "把提示词当代码管理：git 存储 + 结构化 diff + 每次变更自动跑评测门禁",
+  "keywords": [
+    "prompt",
+    "prompt-engineering",
+    "llm",
+    "version-control",
+    "diff",
+    "eval",
+    "git",
+    "cli"
+  ],
+  "bin": {
+    "prompt-git": "bin/prompt-git.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Gollum-code/prompt-git.git"
+  },
+  "homepage": "https://github.com/Gollum-code/prompt-git#readme",
+  "bugs": {
+    "url": "https://github.com/Gollum-code/prompt-git/issues"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
