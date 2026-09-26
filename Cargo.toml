@@ -1,0 +1,32 @@
+[package]
+name = "prompt-git"
+version = "0.1.0"
+edition = "2021"
+description = "把提示词当代码管理：git 存储 + 结构化 diff + 每次变更自动跑评测门禁"
+license = "MIT"
+readme = "README.md"
+default-run = "prompt-git"
+
+[lib]
+name = "prompt_git"
+path = "src/lib.rs"
+
+[[bin]]
+name = "prompt-git"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+colored = "2"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "native-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
