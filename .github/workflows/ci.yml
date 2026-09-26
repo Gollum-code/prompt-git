@@ -53,4 +53,4 @@ jobs:
           OPENAI_API_KEY: dummy
           PROMPT_GIT_BASE_URL: http://127.0.0.1:18080/v1
         working-directory: examples/customer-support
-        run: ../target/release/prompt-git test
+        run: ../../target/release/prompt-git test
