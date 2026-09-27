@@ -1,5 +1,9 @@
 # prompt-git
 
+[![npm](https://img.shields.io/npm/v/prompt-git?color=cb3837&logo=npm)](https://www.npmjs.com/package/prompt-git)
+[![CI](https://github.com/Gollum-code/prompt-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Gollum-code/prompt-git/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > **Prompt 也是代码——给它 git、diff、测试。**
 
 <p align="center">
